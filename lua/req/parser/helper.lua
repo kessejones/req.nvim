@@ -49,4 +49,16 @@ function M.parse_response_statistics(line)
     return 0, 0
 end
 
+---@param url string
+---@return string
+function M.encode_query_parameters(url)
+    local pos = url:find('%?')
+    if pos then
+        local base = url:sub(1, pos)
+        local query = url:sub(pos+1)
+        return base .. vim.uri_encode(query)
+    end
+    return url
+end
+
 return M

@@ -1,5 +1,7 @@
+local helper = require('req.parser.helper')
+
 ---@param method req.Method
-local function method_valid_for_body(method)
+local function is_method_valid_for_body(method)
     if method == 'POST' or method == "PUT" or method == "PATCH" then
         return true
     end
@@ -34,7 +36,7 @@ function Curl:build()
         table.insert(command, string.format("'%s: %s'", name, value))
     end
 
-    if method_valid_for_body(self.request.method) then
+    if is_method_valid_for_body(self.request.method) then
         if self.request.body_type == "BODY" then
             table.insert(command, '--data-raw')
             table.insert(command, self.request.data.body)
@@ -44,7 +46,7 @@ function Curl:build()
         end
     end
 
-    table.insert(command, self.request.url)
+    table.insert(command, helper.encode_query_parameters(self.request.url))
     table.insert(command, '-s')
     table.insert(command, '-D')
     table.insert(command, '-')
