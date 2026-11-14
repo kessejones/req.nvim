@@ -3,6 +3,7 @@ local M = {}
 ---@return integer
 function M.create()
     local buf = vim.api.nvim_create_buf(false, false)
+    vim.bo[buf].filetype = 'req_result'
 
     vim.api.nvim_create_autocmd('BufEnter', {
         buf = buf,

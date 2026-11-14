@@ -1,10 +1,8 @@
 local M = {}
 
----@alias RequestLine table<string>
-
 ---@param line string
----@return Header
-function M.parseHeaderLine(line)
+---@return req.Header
+function M.parse_header_line(line)
     local pos = line:find(':')
 
     local name = vim.trim(line:sub(1, pos-1))
@@ -13,8 +11,8 @@ function M.parseHeaderLine(line)
 end
 
 ---@param line string
----@return RequestLine
-function M.parseRequestLine(line)
+---@return req.RequestLine
+function M.parse_request_line(line)
     local parts = vim.split(line, ' ')
 
     local method = vim.trim(parts[1])
@@ -29,14 +27,26 @@ function M.parseRequestLine(line)
 end
 
 ---@param line string
----@return RequestLine
-function M.parseStatusLine(line)
+---@return req.RequestLine
+function M.parse_status_line(line)
     local lineParts = vim.split(line, ' ')
 
     local version = lineParts[1]
     local status = lineParts[2]
 
     return { version, tonumber(status) }
+end
+
+---@param line string
+---@return number, number
+function M.parse_response_statistics(line)
+    local matches = line:gmatch('time_total=(%d+%.%d+) size_download=(%d+%.?%d*)')
+    local time_total, size_downloaded = matches()
+    if time_total then
+        return tonumber(time_total) or 0, tonumber(size_downloaded) or 0
+    end
+
+    return 0, 0
 end
 
 return M

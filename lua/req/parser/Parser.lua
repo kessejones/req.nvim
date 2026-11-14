@@ -1,183 +1,127 @@
 local Request = require('req.libs.Request')
--- local Builder = require('req.parser.Builder')
 local expander = require('req.parser.expander')
-local helper = require('req.parser.helper')
+local ts = vim.treesitter
 
----@enum ParseMode
-local ParseMode = {
-    PRE_REQUEST = 0,
-    URL = 2,
-    HEADER = 3,
-    BODY = 4,
-    END = 5
-}
+local query = vim.treesitter.query.parse(
+    "http",
+    [[
+(section
+    (request_separator
+        value: (_) @name)
+    request: (_)) @request
+(section
+    (comment
+        name: (_) @_keyword
+        value: (_) @name
+        (#eq? @_keyword "name"))
+    request: (_)) @request
+]]
+)
 
-local function isVariable(line)
-    return vim.startswith(line, '@')
-end
-
-local function isRequest(line)
-    return line:match('^[GET|POST|PUT|DELETE|PATCH]')
-end
-
----@class Parser
----@field request Request
----@field lines string
----@field col integer
----@field row integer
----@field variables Variables
----@field mode ParseMode
+---@class req.Parser
+---@field bufnr integer
+---@field tree vim.treesitter.dev.TSTreeView
+---@field requests table<req.Request>
 local Parser = {}
 
----@param lines string[]
----@return Parser
-function Parser.new(lines)
-    local request = Request.new()
+---@param bufnr integer
+function Parser.new(bufnr)
+    ---@diagnostic disable-next-line
+    local ts_parser, err = vim.treesitter.get_parser(bufnr, 'http')
+    assert(not err)
+    ---@diagnostic disable-next-line
+    local tree = ts_parser:parse(false)[1]
+
     return setmetatable({
-        request = request,
-        lines = lines,
-        col = 1,
-        row = 1,
-        variables = {},
-        mode = ParseMode.PRE_REQUEST,
+        bufnr = bufnr,
+        tree = tree,
+        requests = {},
     }, { __index = Parser })
 end
 
+---@param node TSNode
+function Parser:parse_variable(node)
+    local name = ts.get_node_text(node:field('name')[1], self.bufnr)
+    local value = ts.get_node_text(node:field('value')[1], self.bufnr)
 
----@return string
-function Parser:line()
-    return self.lines[self.row] or ""
+    return name, value
 end
 
----@return string
-function Parser:peek()
-    local line = self:line()
-    return string.sub(line, 1, 1)
-end
+---@param node TSNode
+---@param variables req.Variables
+function Parser:parse_request(node, variables)
+    local request = Request.new()
 
----@return boolean
-function Parser:stop()
-    return (self.row > #self.lines) or (self.mode == ParseMode.END)
-end
+    local method = ts.get_node_text(node:field('method')[1], self.bufnr)
+    local url = ts.get_node_text(node:field('url')[1], self.bufnr)
 
-function Parser:next()
-    self.col = 1
-    self.row = self.row + 1
-end
+    request:set_method(method)
+    request:set_url(expander.expand_all(url, variables))
 
-function Parser:lineIsVariable()
-    return isVariable(self:line())
-end
+    local node_headers = node:field('header')
 
-function Parser:lineIsRequest()
-    return isRequest(self:line())
-end
+    for _, h in ipairs(node_headers) do
+        local key = ts.get_node_text(h:field('name')[1], self.bufnr)
+        local value = ts.get_node_text(h:field('value')[1], self.bufnr)
 
-function Parser:consume()
-    if (self.col + 1) > #self.lines[self.row] then
-        self:next()
-    else
-        self.col = (self.col + 1)
-    end
-end
-
-function Parser:parseVariable()
-    local line = self:line()
-
-    local variableParts = vim.split(line, '=')
-    if #variableParts == 2 then
-        local name = string.sub(vim.trim(variableParts[1]), 2)
-        local value = vim.trim(variableParts[2])
-        self.variables[name] = value
-    end
-end
-
-function Parser:preRequest()
-    local char = self:peek()
-    if isVariable(char) then
-        self:parseVariable()
-        self:next()
-        return
-    end
-
-    if isRequest(self:line()) then
-        self.mode = ParseMode.URL
-    else
-        self:next()
-    end
-end
-
-function Parser:parseRequestLine()
-    local line = self:line()
-    local reqLine = helper.parseRequestLine(line)
-    local urlResolved = expander.expand_all(reqLine[2], self.variables)
-
-    self.request:setMethod(reqLine[1])
-    self.request:setUrl(urlResolved)
-    self.request:setVersion(reqLine[3])
-
-    self.mode = ParseMode.HEADER
-    self:next()
-end
-
-function Parser:parseHeaders()
-    while self.mode == ParseMode.HEADER do
-        local line = self:line()
-        if line == "" then
-            self.mode = ParseMode.BODY
-            self:next()
-            break
-        end
-
-        local header = helper.parseHeaderLine(line)
-
-        self.request:setHeader(
-            expander.expand_all(header[1], self.variables),
-            expander.expand_all(header[2], self.variables)
+        request:set_header(
+            expander.expand_all(key, variables),
+            expander.expand_all(value, variables)
         )
-
-        self:next()
     end
-end
 
-function Parser:parseBody()
-    local buffer = {}
-
-    while self.mode == ParseMode.BODY do
-        local line = self:line()
-
-        if line == nil or #(vim.trim(line)) == 0 then
-            self.mode = ParseMode.END
-            break
+    local node_body = node:field('body')[1]
+    if node_body then
+        local node_path = node_body:field('path')[1]
+        if node_path then
+            local path = ts.get_node_text(node_path, self.bufnr)
+            if vim.fn.isabsolutepath(path) == 0 then
+                -- TODO: Handle if buffer path is not a valid path
+                local buf_path = vim.fs.dirname(vim.api.nvim_buf_get_name(self.bufnr))
+                path = vim.fs.normalize(vim.fs.joinpath(buf_path, path))
+            end
+            request:set_file(path)
+        else
+            local body = ts.get_node_text(node_body, self.bufnr)
+            request:set_body(expander.expand_all(body, variables))
         end
-
-        local resolvedLine = expander.expand_all(line, self.variables)
-        table.insert(buffer, resolvedLine)
-
-        self:next()
     end
 
-    self.request:setBody(table.concat(buffer, ''))
+    table.insert(self.requests, request)
 end
 
----@return Request
+---@param node TSNode
+function Parser:parse_section(node)
+    local variables = {}
+    for i = 1, node:child_count() do
+        local child = node:child(i)
+        if child then
+            if child:type() == 'variable_declaration' then
+                local name, value = self:parse_variable(child)
+                variables[name] = value
+            end
+
+            if child:type() == 'request' then
+                self:parse_request(child, variables)
+                variables = {}
+            end
+        end
+    end
+end
+
+---@return req.Request
 function Parser:parse()
-    -- TODO: Add support for multiples requests in the same buffer
-    --       Should it parse the `##` as title for the request?
+    ---@diagnostic disable-next-line
+    for id, node, _metadata, _match in query:iter_captures(self.tree:root(), self.bufnr) do
+        -- local capture_name = query.captures[id]
 
-    while not self:stop() do
-        if self.mode == ParseMode.PRE_REQUEST then
-            self:preRequest()
-        elseif self.mode == ParseMode.URL then
-            self:parseRequestLine()
-        elseif self.mode == ParseMode.HEADER then
-            self:parseHeaders()
-        elseif self.mode == ParseMode.BODY then
-            self:parseBody()
+        -- TODO: parse request name
+        if node:type() == 'section' then
+            self:parse_section(node)
         end
     end
 
-    return self.request
+    return self.requests
 end
 
 return Parser

@@ -1,28 +1,31 @@
 local helper = require('req.parser.helper')
 
----@class Response
+---@class req.Response
 ---@field status integer
 ---@field http_version string
----@field headers table<string, string>
+---@field headers req.Headers
 ---@field content string
 ---@field max_header_name integer
+---@field time_total number
+---@field size_download number
 local Response = {}
-
----@alias Headers table<string, string>
----@alias Header table<string>
 
 ---@param status integer
 ---@param version string
----@param headers Headers
+---@param headers req.Headers
 ---@param content string?
 ---@param max_header_name integer?
-function Response.new(status, version, headers, content, max_header_name)
+---@param time_total number?
+---@param size_download number?
+function Response.new(status, version, headers, content, max_header_name, time_total, size_download)
     return setmetatable({
         status = status or 0,
         http_version = version or nil,
         headers = headers or {},
         content = content or nil,
         max_header_name = max_header_name or 0,
+        time_total = time_total or 0,
+        size_download = size_download or 0,
     }, {__index = Response})
 end
 
@@ -38,10 +41,10 @@ function Response:content_type()
 end
 
 ---@param output string
----@return Response
+---@return req.Response
 function Response.from_curl_output(output)
     local lines = vim.split(output, '\n')
-    local statusLine = helper.parseStatusLine(lines[1])
+    local statusLine = helper.parse_status_line(lines[1])
 
     local headers = {}
     local content_start_line = 0
@@ -52,7 +55,7 @@ function Response.from_curl_output(output)
             break
         end
 
-        local header = helper.parseHeaderLine(lines[i])
+        local header = helper.parse_header_line(lines[i])
         local name = string.lower(header[1])
         headers[name] = header[2]
 
@@ -62,13 +65,15 @@ function Response.from_curl_output(output)
     end
 
     local buffer = {}
-    for i = content_start_line, #lines do
+    for i = content_start_line, #lines - 2 do
         table.insert(buffer, lines[i])
     end
 
     local content = table.concat(buffer, '')
 
-    return Response.new(statusLine[2], statusLine[1], headers, content, max_header_name)
+    local time_total, size_downloaded = helper.parse_response_statistics(lines[#lines])
+
+    return Response.new(statusLine[2], statusLine[1], headers, content, max_header_name, time_total, size_downloaded)
 end
 
 return Response

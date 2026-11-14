@@ -1,15 +1,11 @@
 local helper = require('req.helper')
 
----@class ContentRange
----@field row_start integer
----@field row_end integer
-
----@class View
+---@class req.View
 ---@field bufnr integer
 ---@field lines table<string>
----@field request Request
----@field response Response
----@field content_range ContentRange
+---@field request req.Request
+---@field response req.Response
+---@field content_range req.ContentRange
 ---@field highlight table
 local View = {}
 
@@ -21,7 +17,7 @@ function View.new(bufnr, result)
         lines = {},
         request = result.request,
         response = result.response,
-        content_range = { 0, 0},
+        content_range = { 0, 0 },
         highlight = {},
     }, { __index = View })
 end
@@ -76,7 +72,7 @@ end
 
 function View:update()
     self:add_line({
-        { 'Comment', "METHOD" },
+        { 'Comment', "Method" },
         { 'Keyword', self.request.method, pad_left = 7 }
     })
 
@@ -86,22 +82,29 @@ function View:update()
     })
 
     self:add_line({
-        { 'Comment', "STATUS" },
+        { 'Comment', "Time" },
+        { 'Keyword', tostring(self.response.time_total) .. 's', pad_left = 7 }
+    })
+
+    self:add_line({
+        { 'Comment', "Size" },
+        { 'Keyword', tostring(self.response.size_download), pad_left = 7 }
+    })
+
+    self:add_line({
+        { 'Comment', "Status" },
         { 'Keyword', tostring(self.response.status), pad_left = 7 }
     })
 
     self:add_separator()
     self:add_separator()
 
-    -- TODO: Should set headers as folding?
-    -- if show_headers then
     for name, value in pairs(self.response.headers) do
         self:add_line({
             { 'Comment', name },
             { 'Keyword', value, pad_left = self.response.max_header_name + 2 }
         })
     end
-    -- end
 
     self:add_separator()
 

@@ -1,15 +1,6 @@
-local mime_types = require('req.mime_types')
-
 local ns = vim.api.nvim_create_namespace('req_result')
 
 local M = {}
-
----@param response Response
----@return string?
-function M.medida_type_from_response(response)
-    local content_type = response:header('content-type')
-    return mime_types.type(content_type)
-end
 
 ---@param buf integer
 ---@return boolean

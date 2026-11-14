@@ -1,74 +1,71 @@
----@enum (key) Method 
-local Method = {
-    GET = 1,
-    POST = 2,
-    PUT = 3,
-    PATCH = 4,
-    DELETE = 5,
-}
-
----@class Request
----@field method Method
+---@class req.Request
+---@field method req.Method
 ---@field url string
 ---@field version string
 ---@field query table<string, string>
 ---@field headers table<string, string>
----@field data table<string, string>
+---@field body_type req.RequestBodyType
+---@field data req.RequestData
 local Request = {}
 
----@param method Method?
----@param url string?
----@param version string?
----@param headers table<string, string>?
----@param body string?
-function Request.new(method, url, version, headers, body, variables)
+---@return req.Request
+function Request.new()
     return setmetatable({
-        method = method or nil,
-        url = url or nil,
-        version = version or nil,
-        query = {},
-        headers = headers or {},
-        variables = variables or {},
+        method = nil,
+        url = nil,
+        version = nil,
+        headers = {},
+        variables = {},
+        body_type = nil,
         data = {
-            body = body
+            query = nil, -- TODO: unused for now, maybe remove and use only parameter set in url
+            body = nil,
+            file = nil,
         },
     }, { __index = Request })
 end
 
----@param variables Variables
-function Request:setVariables(variables)
+---@param variables req.Variables
+function Request:set_variables(variables)
     self.variables = variables
 end
 
 ---@param url string
-function Request:setUrl(url)
+function Request:set_url(url)
     self.url = url
 end
 
 ---@param version string
-function Request:setVersion(version)
+function Request:set_version(version)
     self.version = version
 end
 
----@param method Method
-function Request:setMethod(method)
+---@param method req.Method
+function Request:set_method(method)
     self.method = method
 end
 
 ---@param name string
 ---@param value string
-function Request:setHeader(name, value)
+function Request:set_header(name, value)
     self.headers[name] = value
 end
 
 ---@param body string
-function Request:setBody(body)
+function Request:set_body(body)
+    self.body_type = "BODY"
     self.data.body = body
+end
+
+---@param file string
+function Request:set_file(file)
+    self.body_type = "FILE"
+    self.data.file = file
 end
 
 ---@param name string
 ---@param value string
-function Request:setQuery(name, value)
+function Request:set_query(name, value)
     self.query[name] = value
 end
 
