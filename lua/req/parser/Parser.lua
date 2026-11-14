@@ -77,11 +77,10 @@ function Parser:parse_request(node)
         if node_path then
             local path = ts.get_node_text(node_path, self.bufnr)
             if vim.fn.isabsolutepath(path) == 0 then
-                -- TODO: Handle if buffer path is not a valid path
                 local buf_path = vim.fs.dirname(vim.api.nvim_buf_get_name(self.bufnr))
                 path = vim.fs.normalize(vim.fs.joinpath(buf_path, path))
             end
-            request:set_file(path)
+            request:set_file(expander.expand_all(path, variables))
         else
             local body = ts.get_node_text(node_body, self.bufnr)
             request:set_body(expander.expand_all(body, variables))
