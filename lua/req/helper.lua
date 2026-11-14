@@ -96,5 +96,63 @@ function M.lang_from_content_type(content_type)
     return nil
 end
 
+---@param buf integer
+---@return string?
+function M.search_dotenv_buffer_path(buf)
+    local path = vim.fs.dirname(vim.api.nvim_buf_get_name(buf))
+    local found = vim.fs.find({ '.env' }, { path = path })
+
+    if #found > 0 then
+        return found[1]
+    end
+
+    return nil
+end
+
+---@param command table<string>
+---@param source string
+---@return string?
+function M.exec(command, source)
+    local task = vim.system(
+        command,
+        { text = true, stdin = true }
+    )
+
+    task:write(source)
+    task:write(nil)
+
+    local result = task:wait()
+    if result.code == 0 then
+        return result.stdout
+    else
+        vim.notify("req.nvim - job code: " .. result.code .. ', stderr = ' .. result.stderr, vim.log.levels.DEBUG)
+    end
+
+    return nil
+end
+
+---@param size integer
+---@return string
+function M.size_readable(size)
+    local KB = 1000
+    local MB = KB * KB
+    local GB = KB * KB * KB
+    local TB = KB * KB * KB * KB
+    local out = ""
+
+    if size < KB then
+        out = ("%s bytes"):format(size)
+    elseif size < MB then
+        out = ("%.1fk"):format(size / KB)
+    elseif size < GB then
+        out = ("%.1fM"):format(size / MB)
+    elseif size < TB then
+        out = ("%.1fG"):format(size / GB)
+    else
+        out = ("%.1fT"):format(size / TB)
+    end
+    return out
+end
+
 return M
 

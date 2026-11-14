@@ -1,23 +1,7 @@
 local config = require('req.config')
+local helper = require('req.helper')
 
 local M = {}
-
----@param command table
----@param source string
----@return string
-local function exec(command, source)
-    local task = vim.system(
-        command,
-        { text = true, stdin = true }
-    )
-
-    task:write(source)
-    task:write(nil)
-
-    local result = task:wait()
-
-    return result.stdout
-end
 
 ---@param type string
 ---@return boolean
@@ -36,7 +20,7 @@ end
 function M.format(type, source)
     local cmd = config.formatters()[type]
     if cmd then
-        return exec(cmd, source)
+        return helper.exec(cmd, source)
     end
     return nil
 end

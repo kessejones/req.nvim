@@ -1,3 +1,12 @@
+---@param method req.Method
+local function method_valid_for_body(method)
+    if method == 'POST' or method == "PUT" or method == "PATCH" then
+        return true
+    end
+
+    return false
+end
+
 ---@class req.Curl
 ---@field request req.Request
 ---@field buffer table<string>
@@ -15,7 +24,7 @@ function Curl:build()
 
     table.insert(command, 'curl')
     table.insert(command, '-w')
-    table.insert(command, '"\n\ntime_total=%{time_total} size_download=%{size_download}"')
+    table.insert(command, '\n\ntime_total=%{time_total} size_download=%{size_download}')
 
     table.insert(command, '-X')
     table.insert(command, self.request.method)
@@ -25,18 +34,17 @@ function Curl:build()
         table.insert(command, string.format("'%s: %s'", name, value))
     end
 
-    -- TODO: insert body for post/put/patch
-    --       use correctly the data type from the content-type header
-
-    if self.request.body_type == "BODY" then
-        table.insert(command, '--data-raw')
-        table.insert(command, self.request.data.body)
-    elseif self.request.body_type == "FILE" then
-        table.insert(command, '--data')
-        table.insert(command, '@' .. self.request.data.file)
+    if method_valid_for_body(self.request.method) then
+        if self.request.body_type == "BODY" then
+            table.insert(command, '--data-raw')
+            table.insert(command, self.request.data.body)
+        elseif self.request.body_type == "FILE" then
+            table.insert(command, '--data')
+            table.insert(command, '@' .. self.request.data.file)
+        end
     end
 
-    table.insert(command, self.request.url)
+    table.insert(command, vim.uri_encode(self.request.url))
     table.insert(command, '-s')
     table.insert(command, '-D')
     table.insert(command, '-')

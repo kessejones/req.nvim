@@ -4,7 +4,8 @@ local M = {}
 ---@field formatters req.Formatters
 local default_configs = {
     formatters = {
-        json = { 'jq', '-M' }
+        json = { 'jq', '-M' },
+        html = { 'prettier', '--parser', 'html' }
     }
 }
 

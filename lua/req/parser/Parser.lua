@@ -22,10 +22,12 @@ local query = vim.treesitter.query.parse(
 ---@field bufnr integer
 ---@field tree vim.treesitter.dev.TSTreeView
 ---@field requests table<req.Request>
+---@field variables req.Variables
 local Parser = {}
 
 ---@param bufnr integer
-function Parser.new(bufnr)
+---@param envs req.Variables
+function Parser.new(bufnr, envs)
     ---@diagnostic disable-next-line
     local ts_parser, err = vim.treesitter.get_parser(bufnr, 'http')
     assert(not err)
@@ -36,6 +38,7 @@ function Parser.new(bufnr)
         bufnr = bufnr,
         tree = tree,
         requests = {},
+        variables = envs or {},
     }, { __index = Parser })
 end
 
@@ -43,13 +46,15 @@ end
 function Parser:parse_variable(node)
     local name = ts.get_node_text(node:field('name')[1], self.bufnr)
     local value = ts.get_node_text(node:field('value')[1], self.bufnr)
-
+    self.variables[name] = expander.expand_all(value, self.variables)
     return name, value
 end
 
 ---@param node TSNode
----@param variables req.Variables
-function Parser:parse_request(node, variables)
+function Parser:parse_request(node)
+    local variables = self.variables
+    self.variables = {}
+
     local request = Request.new()
 
     local method = ts.get_node_text(node:field('method')[1], self.bufnr)
@@ -92,18 +97,15 @@ end
 
 ---@param node TSNode
 function Parser:parse_section(node)
-    local variables = {}
     for i = 1, node:child_count() do
         local child = node:child(i)
         if child then
             if child:type() == 'variable_declaration' then
-                local name, value = self:parse_variable(child)
-                variables[name] = value
+                self:parse_variable(child)
             end
 
             if child:type() == 'request' then
-                self:parse_request(child, variables)
-                variables = {}
+                self:parse_request(child)
             end
         end
     end
@@ -113,8 +115,6 @@ end
 function Parser:parse()
     ---@diagnostic disable-next-line
     for id, node, _metadata, _match in query:iter_captures(self.tree:root(), self.bufnr) do
-        -- local capture_name = query.captures[id]
-
         -- TODO: parse request name
         if node:type() == 'section' then
             self:parse_section(node)

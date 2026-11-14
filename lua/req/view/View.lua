@@ -1,4 +1,5 @@
 local helper = require('req.helper')
+local http = require('req.libs.http')
 
 ---@class req.View
 ---@field bufnr integer
@@ -72,28 +73,28 @@ end
 
 function View:update()
     self:add_line({
-        { 'Comment', "Method" },
-        { 'Keyword', self.request.method, pad_left = 7 }
+        { 'Normal', "Method" },
+        { 'Title', self.request.method, pad_left = 7 }
     })
 
     self:add_line({
-        { 'Comment', "URL" },
-        { 'Keyword', self.request.url, pad_left = 7 }
+        { 'Normal', "URL" },
+        { 'Title', self.request.url, pad_left = 7 }
     })
 
     self:add_line({
-        { 'Comment', "Time" },
-        { 'Keyword', tostring(self.response.time_total) .. 's', pad_left = 7 }
+        { 'Normal', "Time" },
+        { 'Title', tostring(self.response.time_total) .. 's', pad_left = 7 }
     })
 
     self:add_line({
-        { 'Comment', "Size" },
-        { 'Keyword', tostring(self.response.size_download), pad_left = 7 }
+        { 'Normal', "Size" },
+        { 'Title', helper.size_readable(self.response.size_download), pad_left = 7 }
     })
 
     self:add_line({
-        { 'Comment', "Status" },
-        { 'Keyword', tostring(self.response.status), pad_left = 7 }
+        { 'Normal', "Status" },
+        { 'Title', tostring(self.response.status) .. ' ' .. http.status(self.response.status), pad_left = 7 }
     })
 
     self:add_separator()

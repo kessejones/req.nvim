@@ -26,7 +26,7 @@ function Response.new(status, version, headers, content, max_header_name, time_t
         max_header_name = max_header_name or 0,
         time_total = time_total or 0,
         size_download = size_download or 0,
-    }, {__index = Response})
+    }, { __index = Response })
 end
 
 ---@param name string
@@ -44,7 +44,7 @@ end
 ---@return req.Response
 function Response.from_curl_output(output)
     local lines = vim.split(output, '\n')
-    local statusLine = helper.parse_status_line(lines[1])
+    local status_line = helper.parse_status_line(lines[1])
 
     local headers = {}
     local content_start_line = 0
@@ -65,15 +65,24 @@ function Response.from_curl_output(output)
     end
 
     local buffer = {}
+    -- NOTE: There're two empty lines as separator
+    --       Last line is a reserved line for the statistics
     for i = content_start_line, #lines - 2 do
         table.insert(buffer, lines[i])
     end
 
     local content = table.concat(buffer, '')
-
     local time_total, size_downloaded = helper.parse_response_statistics(lines[#lines])
 
-    return Response.new(statusLine[2], statusLine[1], headers, content, max_header_name, time_total, size_downloaded)
+    return Response.new(
+        status_line[2],
+        status_line[1],
+        headers,
+        content,
+        max_header_name,
+        time_total,
+        size_downloaded
+    )
 end
 
 return Response
