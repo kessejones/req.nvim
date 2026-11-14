@@ -8,11 +8,11 @@ local M = {}
 
 local function create_commands()
     vim.api.nvim_create_user_command('ReqRun', function (_args)
-        M.run()
+        M.run({ under_cursor = true })
     end, {})
 
     vim.api.nvim_create_user_command('ReqViewLast', function (_args)
-        M.run()
+        M.view_last()
     end, {})
 end
 
@@ -23,8 +23,14 @@ function M.setup(opts)
     create_commands()
 end
 
-function M.run()
-    -- TODO: Run on the request under the cursor
+---@param opts req.RunOptions
+function M.run(opts)
+    opts = opts or {}
+
+    local cursor
+    if opts.under_cursor then
+        cursor = vim.api.nvim_win_get_cursor(0)
+    end
 
     local buf = vim.api.nvim_get_current_buf()
     if not vim.api.nvim_buf_is_valid(buf) then
@@ -39,7 +45,7 @@ function M.run()
             envs = parser.parse_env_file(env_file)
         end
 
-        local requests = parser.parse(buf, envs)
+        local requests = parser.parse(cursor, buf, envs)
         requester.fire(requests[1], function (result)
             view.show(result)
         end)

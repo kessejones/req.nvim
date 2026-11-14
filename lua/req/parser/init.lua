@@ -3,11 +3,12 @@ local dotenv = require('req.parser.dotenv')
 
 local M = {}
 
+---@param cursor table<integer>?
 ---@param bufnr integer
 ---@param envs req.Variables
 ---@return req.Request
-function M.parse(bufnr, envs)
-    return Parser.new(bufnr, envs):parse()
+function M.parse(cursor, bufnr, envs)
+    return Parser.new(bufnr, envs):parse(cursor)
 end
 
 ---@param env_file string

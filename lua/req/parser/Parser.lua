@@ -6,15 +6,10 @@ local query = vim.treesitter.query.parse(
     "http",
     [[
 (section
-    (request_separator
-        value: (_) @name)
-    request: (_)) @request
-(section
-    (comment
-        name: (_) @_keyword
-        value: (_) @name
-        (#eq? @_keyword "name"))
-    request: (_)) @request
+    (variable_declaration
+        name: (_) @name
+        value: (_) @value)*
+    request: (_) @request) @section
 ]]
 )
 
@@ -46,6 +41,7 @@ end
 function Parser:parse_variable(node)
     local name = ts.get_node_text(node:field('name')[1], self.bufnr)
     local value = ts.get_node_text(node:field('value')[1], self.bufnr)
+
     self.variables[name] = expander.expand_all(value, self.variables)
     return name, value
 end
@@ -97,28 +93,48 @@ end
 
 ---@param node TSNode
 function Parser:parse_section(node)
-    for i = 1, node:child_count() do
-        local child = node:child(i)
-        if child then
-            if child:type() == 'variable_declaration' then
-                self:parse_variable(child)
-            end
+    for child, _ in node:iter_children() do
+        if child:type() == 'variable_declaration' then
+            self:parse_variable(child)
+        end
 
-            if child:type() == 'request' then
-                self:parse_request(child)
-            end
+        if child:type() == 'request' then
+            self:parse_request(child)
         end
     end
 end
 
----@return req.Request
-function Parser:parse()
+function Parser:parse_entire_buffer()
     ---@diagnostic disable-next-line
     for id, node, _metadata, _match in query:iter_captures(self.tree:root(), self.bufnr) do
         -- TODO: parse request name
         if node:type() == 'section' then
             self:parse_section(node)
         end
+    end
+end
+
+---@param cursor table<integer>?
+---@return req.Request
+function Parser:parse(cursor)
+    if cursor then
+        local node = vim.treesitter.get_node({
+          bufnr = self.bufnr,
+          pos = { cursor[1] - 1, cursor[2] },
+        })
+
+        while node and node:type() ~= 'section' do
+            node = node:parent()
+        end
+
+        if node then
+            self:parse_section(node)
+        else
+            -- TODO: Should it be the fallback or just do nothing
+            self:parse_entire_buffer()
+        end
+    else
+        self:parse_entire_buffer()
     end
 
     return self.requests

@@ -21,3 +21,6 @@
 ---@field file string?
 
 ---@alias req.RequestLine table<string>
+
+---@class req.RunOptions
+---@field under_cursor boolean?
