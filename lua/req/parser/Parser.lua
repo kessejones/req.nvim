@@ -67,7 +67,7 @@ function Parser:parse_request(node)
 
         request:set_header(
             expander.expand_all(key, variables),
-            expander.expand_all(value, variables)
+            expander.expand_header_interceptor(key, expander.expand_all(value, variables))
         )
     end
 

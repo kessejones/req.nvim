@@ -11,7 +11,7 @@ local Result = {}
 local M = {}
 
 ---@param request req.Request
----@param callback function
+---@param callback fun(result: req.Result)
 function M.fire(request, callback)
     vim.validate('callback', callback, 'function')
 

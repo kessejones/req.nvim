@@ -1,12 +1,15 @@
 local helper = require('req.parser.helper')
 
 ---@param method req.Method
+---@return boolean
 local function is_method_valid_for_body(method)
-    if method == 'POST' or method == "PUT" or method == "PATCH" then
-        return true
-    end
+    return method == 'POST' or method == "PUT" or method == "PATCH"
+end
 
-    return false
+---@param header string
+---@return boolean
+local function is_header_user_agent(header)
+    return header:lower() == 'user-agent'
 end
 
 ---@class req.Curl
@@ -31,9 +34,19 @@ function Curl:build()
     table.insert(command, '-X')
     table.insert(command, self.request.method)
 
+    local has_user_agent = false
     for name, value in pairs(self.request.headers) do
         table.insert(command, '-H')
-        table.insert(command, string.format("'%s: %s'", name, value))
+        table.insert(command, string.format("%s: %s", name, value))
+
+        if is_header_user_agent(name) then
+            has_user_agent = true
+        end
+    end
+
+    if not has_user_agent then
+        table.insert(command, '--user-agent')
+        table.insert(command, 'req')
     end
 
     if is_method_valid_for_body(self.request.method) then

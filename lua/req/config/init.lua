@@ -2,11 +2,25 @@ local M = {}
 
 ---@class req.Config
 ---@field formatters req.Formatters
+---@field interceptors req.Interceptors
 local default_configs = {
     formatters = {
         json = { 'jq', '-M' },
         html = { 'prettier', '--parser', 'html' }
-    }
+    },
+    interceptors = {
+        headers = {
+            Authorization = function (value)
+                local matches = value:gmatch('Basic%s+(.+):(.+)$')
+                local user, pass = matches()
+                if user and pass then
+                    return 'Basic ' .. vim.base64.encode(user .. ':' .. pass)
+                end
+
+                return false
+            end,
+        },
+    },
 }
 
 ---@param opts req.Config

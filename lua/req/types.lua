@@ -24,3 +24,9 @@
 
 ---@class req.RunOptions
 ---@field under_cursor boolean?
+
+---@alias req.HeaderInterceptorFunc fun(value: string): string|boolean
+---@alias req.HeaderInterceptors table<string, req.HeaderInterceptorFunc>
+
+---@class req.Interceptors
+---@field headers req.HeaderInterceptors

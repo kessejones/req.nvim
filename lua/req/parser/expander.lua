@@ -1,3 +1,5 @@
+local config = require('req.config')
+
 local M = {}
 
 ---@param input string
@@ -12,6 +14,20 @@ function M.expand_all(input, variables)
 
         return value
     end)
+end
+
+---@param name string
+---@param value string
+---@return string
+function M.expand_header_interceptor(name, value)
+    local func = config.config.interceptors.headers[name]
+    if func then
+        local result = func(value)
+        if type(result) == 'string' then
+            return result
+        end
+    end
+    return value
 end
 
 return M
