@@ -8,7 +8,8 @@ function M.expand_all(input, variables)
     return input:gsub("{{%s*(.-)%s*}}", function (match)
         assert(#match > 0)
 
-        local value = variables[match] or ""
+        local value = variables[match]
+        assert(value ~= nil, "req.nvim - undefined variable " .. match)
 
         -- TODO: create diagnostics
 
