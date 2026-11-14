@@ -19,7 +19,7 @@ end
 ---@param opts req.Config
 function M.setup(opts)
     config.setup(opts)
-
+    view.setup()
     create_commands()
 end
 
