@@ -6,9 +6,21 @@ local helper = require('req.helper')
 
 local M = {}
 
+local function create_commands()
+    vim.api.nvim_create_user_command('ReqRun', function (_args)
+        M.run()
+    end, {})
+
+    vim.api.nvim_create_user_command('ReqViewLast', function (_args)
+        M.run()
+    end, {})
+end
+
 ---@param opts req.Config
 function M.setup(opts)
     config.setup(opts)
+
+    create_commands()
 end
 
 function M.run()
@@ -34,6 +46,10 @@ function M.run()
     else
         vim.notify('req.nvim - only http files are allowed for requests', vim.log.levels.WARN)
     end
+end
+
+function M.view_last()
+    view.view_last_from_history()
 end
 
 return M

@@ -5,6 +5,7 @@ local View = require('req.view.View')
 local M = {}
 
 local __buf_cache = {}
+local __req_history = {}
 
 ---@param bufnr integer
 ---@param result req.Result
@@ -36,9 +37,22 @@ function M.show(result)
     local tabnr = vim.api.nvim_get_current_tabpage()
     local bufnr = get_or_create_buffer(tabnr)
 
+    __req_history[tabnr] = result
     vim.schedule(function ()
         show_internal(bufnr, result)
     end)
+end
+
+function M.view_last_from_history()
+    local tabnr = vim.api.nvim_get_current_tabpage()
+    local bufnr = get_or_create_buffer(tabnr)
+
+    local result = __req_history[tabnr]
+    if result then
+        vim.schedule(function ()
+            show_internal(bufnr, result)
+        end)
+    end
 end
 
 return M

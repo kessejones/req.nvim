@@ -44,7 +44,7 @@ function Curl:build()
         end
     end
 
-    table.insert(command, vim.uri_encode(self.request.url))
+    table.insert(command, self.request.url)
     table.insert(command, '-s')
     table.insert(command, '-D')
     table.insert(command, '-')
